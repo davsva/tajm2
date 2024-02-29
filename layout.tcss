@@ -1,0 +1,55 @@
+#app-grid {
+    layout: grid;
+    grid-size: 2;  /* two columns */
+    grid-columns: 1fr;
+    grid-rows: 20% 80%;
+}
+
+#date {
+    width: 20;
+}
+
+Label {
+    color: black;
+    background: yellowgreen;
+    text-align: center;
+}
+
+Input.-valid {
+    border: ascii $success;
+}
+
+Input.-valid:focus {
+    border: ascii $success;
+}
+
+
+Input, TextArea {
+    border: ascii $accent;
+}
+
+#year {
+    width: 11;
+}
+
+#month, #day, #t1h, #t1m, #t2h, #t2m {
+    width: 9;
+}
+
+#date_row {
+    column-span: 2;
+}
+
+#week {
+    dock: right;
+    align-vertical: middle;
+}
+
+.box {
+    height: 100%;
+    border: solid green;
+}
+
+Tabs {
+    dock: top;
+}
