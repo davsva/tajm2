@@ -10,22 +10,21 @@
 }
 
 Label {
-    color: black;
-    background: yellowgreen;
     text-align: center;
+    align-vertical: middle;
+    border: blank black;
 }
 
-Input.-valid {
+Input.-valid, TextArea.-valid {
+    border: ascii $success 60%;
+}
+
+Input.-valid:focus, TextArea.-valid:focus {
     border: ascii $success;
 }
-
-Input.-valid:focus {
-    border: ascii $success;
-}
-
 
 Input, TextArea {
-    border: ascii $accent;
+    border: ascii red;
 }
 
 #year {
@@ -42,7 +41,8 @@ Input, TextArea {
 
 #week {
     dock: right;
-    align-vertical: middle;
+    color: black;
+    background: yellowgreen;
 }
 
 .box {
