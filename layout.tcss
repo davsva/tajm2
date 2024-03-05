@@ -15,16 +15,24 @@ Label {
     border: blank black;
 }
 
-Input.-valid, TextArea.-valid {
+Input.-valid {
     border: ascii $success 60%;
 }
 
-Input.-valid:focus, TextArea.-valid:focus {
+Input.-valid:focus {
     border: ascii $success;
 }
 
-Input, TextArea {
+Input {
     border: ascii red;
+}
+
+#new_tag, #notes {
+    border: ascii $success 60%;
+}
+
+#new_tag:focus, #notes:focus {
+    border: ascii $success;
 }
 
 #year {

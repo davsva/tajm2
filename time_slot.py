@@ -15,3 +15,6 @@ class TimeSlot:
     
     def add_tag(self, new_tag):
         self.tags.append(new_tag)
+
+    def remove_tag(self, old_tag):
+        self.tags.remove(old_tag)

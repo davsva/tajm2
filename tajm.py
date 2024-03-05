@@ -1,10 +1,11 @@
 import logging, re, calendar
+import urllib.parse
 from datetime import datetime
 from textual import on, events
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.validation import Function, Number, ValidationResult, Validator
-from textual.widgets import Header, Footer, Label, Input, Static, Tabs, TextArea, Button
+from textual.widgets import Header, Footer, Label, Input, Static, Tabs, TextArea, Button, Markdown
 from time_slot import TimeSlot
 
 class ValidYear(Validator):  
@@ -157,11 +158,13 @@ class Tajm(App):
                     yield MinuteInput(id="t2m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinute()], validate_on=["changed"])
                     yield Label(id="slot_summary")
                 with Vertical():    
-                    yield Input(id="new_tag", placeholder="Tag...", max_length=25)
+                    yield Input(id="new_tag", placeholder="Tag...[ENTER]", max_length=25)
+                    yield Markdown(id="tags")
+                with Vertical():    
                     yield TextArea(id="notes")
                 with Horizontal():    
-                    yield Button.success("Register")
-                    yield Button.error("Remove", disabled=True)
+                    yield Button.success(":floppy_disk:")
+                    yield Button.error(":wastebasket:", disabled=True)
             with Static("Three", classes="box"):
                 yield Tabs("Day", "Week", "Month", "Year")
                 yield Label(id="sselected")
@@ -204,6 +207,15 @@ class Tajm(App):
         """Clear the tabs."""
         self.query_one("#sselected").clear()
 
+    def update_tags(self):
+            tags = self.query_one("#tags")
+            tags_content = ""
+            for tag in self.time_slot.tags:
+                href_tag = f"remove_{tag}"
+                href_tag = urllib.parse.quote(href_tag)
+                tags_content += tag + f" [❌]({href_tag}) "
+            tags.update(tags_content)
+
     @on(Input.Changed)
     def show_invalid_reasons(self, event: Input.Changed) -> None:
         if event.validation_result != None and not event.validation_result.is_valid:
@@ -213,9 +225,16 @@ class Tajm(App):
     def show_invalid_reasons(self, event: Input.Submitted) -> None:
         if event.input.id == "new_tag":
             self.time_slot.add_tag(event.value)
-            # TODO ok, we have tags - but it's time to show them to the end user, also consider how to remove tags
+            self.update_tags() 
             """ then clear the event.input """
             event.input.clear()
+
+    @on(Markdown.LinkClicked)
+    def check_link(self, markdown) -> None:
+        if markdown.href.startswith("remove_"): 
+            tag = urllib.parse.unquote(markdown.href[7:])
+            self.time_slot.remove_tag(tag)
+            self.update_tags()
 
 if __name__ == "__main__":
     logging.basicConfig(filename='tajm.log', encoding='utf-8', level=logging.DEBUG)
