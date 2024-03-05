@@ -6,7 +6,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.validation import Function, Number, ValidationResult, Validator
 from textual.widgets import Header, Footer, Label, Input, Static, Tabs, TextArea, Button, Markdown
-from time_slot import TimeSlot
+from time_slot import *
 
 class ValidYear(Validator):  
     def validate(self, value: str) -> ValidationResult:
@@ -163,7 +163,7 @@ class Tajm(App):
                 with Vertical():    
                     yield TextArea(id="notes")
                 with Horizontal():    
-                    yield Button.success(":floppy_disk:")
+                    yield Button.success(":floppy_disk:", id="save")
                     yield Button.error(":wastebasket:", disabled=True)
             with Static("Three", classes="box"):
                 yield Tabs("Day", "Week", "Month", "Year")
@@ -181,7 +181,9 @@ class Tajm(App):
         t1 = self.selected_date.replace(hour=int(self.app.query_one("#t1h").value), minute=int(self.app.query_one("#t1m").value))
         """ end time """
         t2 = self.selected_date.replace(hour=int(self.app.query_one("#t2h").value), minute=int(self.app.query_one("#t2m").value))
-        self.time_slot = TimeSlot(t1, t2)
+        self.time_slot = TimeSlot()
+        self.time_slot.start_at = t1
+        self.time_slot.end_at = t2
         slot_summary_label = self.query_one("#slot_summary")
         slot_summary_label.update(f"{str(self.time_slot.get_difference()[0]).zfill(1)}h {str(self.time_slot.get_difference()[1]).zfill(2)}m")
 
@@ -236,8 +238,18 @@ class Tajm(App):
             self.time_slot.remove_tag(tag)
             self.update_tags()
 
+    @on(Button.Pressed)
+    def button_clicked(self, pressed) -> None:
+        if pressed.button.id == "save":
+            """ here the user's intent is to save the time slot """
+            notes = self.query_one("#notes")
+            self.time_slot.note = notes.text
+            self.time_slot.save()
+
 if __name__ == "__main__":
     logging.basicConfig(filename='tajm.log', encoding='utf-8', level=logging.DEBUG)
     logging.debug("Spinning up")
+    init_db()
     app = Tajm()
     app.run()
+    close_db()
