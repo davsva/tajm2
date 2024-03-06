@@ -123,7 +123,7 @@ class Tajm(App):
 
     BINDINGS = [("q", "quit", "Quit"), ("d", "toggle_dark", "Toggle dark mode")]
     CSS_PATH = "layout.tcss"
-    AUTO_FOCUS = "#end_time"
+    AUTO_FOCUS = "#year"
 
     selected_date = datetime.now()
 
@@ -154,7 +154,7 @@ class Tajm(App):
                     yield MinuteInput(id="t2m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
                     yield Label(id="slot_summary")
                 with Vertical():    
-                    yield Input(id="new_tag", placeholder="Tag...[ENTER]", max_length=25, suggester=TagSuggester())
+                    yield Input(id="new_tag", placeholder="Tag...[ARROW RIGHT]...[ENTER]", max_length=25, suggester=TagSuggester())
                     yield Markdown(id="tags")
                 with Vertical():    
                     yield TextArea(id="notes")
@@ -196,9 +196,6 @@ class Tajm(App):
     def on_mount(self):
         self.update_selected_date(datetime.now())
         self.update_slot_summary()
-
-    def on_unmount(self):
-        logging.debug("what")
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle TabActivated message sent by Tabs."""
