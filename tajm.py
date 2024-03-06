@@ -6,21 +6,21 @@ from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.validation import Function, Number, ValidationResult, Validator
 from textual.widgets import Header, Footer, Label, Input, Static, Tabs, TextArea, Button, Markdown
+from textual.suggester import Suggester
 from time_slot import *
 
-class ValidYear(Validator):  
-    def validate(self, value: str) -> ValidationResult:
-        if value.isdigit() and int(value) >= 1 and int(value) <= 9999: 
-            return self.success()
-        else:
-            return self.failure("That's not a valid year")
+class ValidMinMax(Validator):
 
-class ValidMonth(Validator):  
+    def __init__(self, min, max, entity):
+        self.min = min
+        self.max = max
+        self.entity = entity
+  
     def validate(self, value: str) -> ValidationResult:
-        if value.isdigit() and int(value) >= 1 and int(value) <= 12: 
+        if value.isdigit() and int(value) >= self.min and int(value) <= self.max: 
             return self.success()
         else:
-            return self.failure("That's not a valid month")
+            return self.failure(f"That's not a valid {self.entity}")
 
 class ValidDay(Validator):
 
@@ -34,31 +34,17 @@ class ValidDay(Validator):
         else:
             return self.failure("That's not a valid day within the month")
 
-class ValidHour(Validator):  
-    def validate(self, value: str) -> ValidationResult:
-        if value.isdigit() and int(value) >= 0 and int(value) <= 23: 
-            return self.success()
-        else:
-            return self.failure("That's not a valid hour")
-
-class ValidMinute(Validator):  
-    def validate(self, value: str) -> ValidationResult:
-        if value.isdigit() and int(value) >= 0 and int(value) <= 59: 
-            return self.success()
-        else:
-            return self.failure("That's not a valid minute")
-
 class YearInput(Input):
     def on_key(self, event: events.Key) -> None:
         if event.key == "up":
-            if ValidYear().validate(str(int(self.value) + 1)).is_valid:
+            if ValidMinMax(1, 9999, "year").validate(str(int(self.value) + 1)).is_valid:
                 self.value = str(int(self.value) + 1)
         elif event.key == "down":
-            if ValidYear().validate(str(int(self.value) - 1)).is_valid:
+            if ValidMinMax(1, 9999, "year").validate(str(int(self.value) - 1)).is_valid:
                 self.value = str(int(self.value) - 1)
 
     def on_blur(self):
-        if ValidYear().validate(self.value).is_valid:
+        if ValidMinMax(1, 9999, "year").validate(self.value).is_valid:
             try:
                 new_date = self.app.selected_date.replace(year=int(self.value))
                 self.app.update_selected_date(new_date)
@@ -68,14 +54,14 @@ class YearInput(Input):
 class MonthInput(Input):
     def on_key(self, event: events.Key) -> None:
         if event.key == "up":
-            if ValidMonth().validate(str(int(self.value) + 1)).is_valid:
+            if ValidMinMax(1, 12, "month").validate(str(int(self.value) + 1)).is_valid:
                 self.value = str(int(self.value) + 1).zfill(2)
         elif event.key == "down":
-            if ValidMonth().validate(str(int(self.value) - 1)).is_valid:
+            if ValidMinMax(1, 12, "month").validate(str(int(self.value) - 1)).is_valid:
                 self.value = str(int(self.value) - 1).zfill(2)
 
     def on_blur(self):
-        if ValidMonth().validate(self.value).is_valid:
+        if ValidMinMax(1, 12, "month").validate(self.value).is_valid:
             try:
                 new_date = self.app.selected_date.replace(month=int(self.value))
                 self.app.update_selected_date(new_date)
@@ -103,10 +89,10 @@ class DayInput(Input):
 class HourInput(Input):
     def on_key(self, event: events.Key) -> None:
         if event.key == "up":
-            if ValidHour().validate(str(int(self.value) + 1)).is_valid:
+            if ValidMinMax(0, 23, "hour").validate(str(int(self.value) + 1)).is_valid:
                 self.value = str(int(self.value) + 1).zfill(2)
         elif event.key == "down":
-            if ValidHour().validate(str(int(self.value) - 1)).is_valid:
+            if ValidMinMax(0, 23, "hour").validate(str(int(self.value) - 1)).is_valid:
                 self.value = str(int(self.value) - 1).zfill(2)
 
     def on_blur(self):
@@ -115,14 +101,22 @@ class HourInput(Input):
 class MinuteInput(Input):
     def on_key(self, event: events.Key) -> None:
         if event.key == "up":
-            if ValidMinute().validate(str(int(self.value) + 1)).is_valid:
+            if ValidMinMax(0, 59, "minute").validate(str(int(self.value) + 1)).is_valid:
                 self.value = str(int(self.value) + 1).zfill(2)
         elif event.key == "down":
-            if ValidMinute().validate(str(int(self.value) - 1)).is_valid:
+            if ValidMinMax(0, 59, "minute").validate(str(int(self.value) - 1)).is_valid:
                 self.value = str(int(self.value) - 1).zfill(2)
 
     def on_blur(self):
         self.app.update_slot_summary()
+
+class TagSuggester(Suggester):
+    async def get_suggestion(self, value):
+        if len(value) > 0:
+            query = Tag.select().where(Tag.tag.startswith(value))
+            if len(query) > 0:
+                return query[0].tag
+        return None
 
 class Tajm(App):
     """ A Textual app to manage time slots """
@@ -135,6 +129,8 @@ class Tajm(App):
 
     time_slot = None
 
+    tags = []
+
     def compose(self) -> ComposeResult:
         logging.debug(f"{self.selected_date.strftime("%Y-%m-%d %H:%M:%S")}")
 
@@ -144,21 +140,21 @@ class Tajm(App):
         with Container(id="app-grid"):
             with Static("One", classes="box", id="date_row"):
                 with Horizontal():
-                    yield YearInput(id="year", value=f"{self.selected_date.strftime("%Y")}", max_length=4, validators=[ValidYear()], validate_on=["changed"])
-                    yield MonthInput(id="month", value=f"{self.selected_date.strftime("%m")}", max_length=2, validators=[ValidMonth()], validate_on=["changed"])
+                    yield YearInput(id="year", value=f"{self.selected_date.strftime("%Y")}", max_length=4, validators=[ValidMinMax(1, 9999, "year")], validate_on=["changed"])
+                    yield MonthInput(id="month", value=f"{self.selected_date.strftime("%m")}", max_length=2, validators=[ValidMinMax(1, 12, "month")], validate_on=["changed"])
                     yield DayInput(id="day", value=f"{self.selected_date.strftime("%d")}", max_length=2, validators=[ValidDay(self)], validate_on=["changed"])
                     yield Label(id="week")
 
             with Static("Two", classes="box"):
                 with Horizontal():
-                    yield HourInput(id="t1h", value=f"{self.selected_date.strftime("%H")}", max_length=2, validators=[ValidHour()], validate_on=["changed"])
-                    yield MinuteInput(id="t1m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinute()], validate_on=["changed"])
+                    yield HourInput(id="t1h", value=f"{self.selected_date.strftime("%H")}", max_length=2, validators=[ValidMinMax(0, 23, "hour")], validate_on=["changed"])
+                    yield MinuteInput(id="t1m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
                     yield Label("to")
-                    yield HourInput(id="t2h", value=f"{self.selected_date.strftime("%H")}", max_length=2, validators=[ValidHour()], validate_on=["changed"])
-                    yield MinuteInput(id="t2m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinute()], validate_on=["changed"])
+                    yield HourInput(id="t2h", value=f"{self.selected_date.strftime("%H")}", max_length=2, validators=[ValidMinMax(0, 23, "hour")], validate_on=["changed"])
+                    yield MinuteInput(id="t2m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
                     yield Label(id="slot_summary")
                 with Vertical():    
-                    yield Input(id="new_tag", placeholder="Tag...[ENTER]", max_length=25)
+                    yield Input(id="new_tag", placeholder="Tag...[ENTER]", max_length=25, suggester=TagSuggester())
                     yield Markdown(id="tags")
                 with Vertical():    
                     yield TextArea(id="notes")
@@ -191,6 +187,12 @@ class Tajm(App):
         """An action to toggle dark mode."""
         self.dark = not self.dark
 
+    def reset(self):
+        self.tags = []
+        self.update_tags()
+        self.app.query_one("#notes").text = ""
+        self.update_slot_summary()
+
     def on_mount(self):
         self.update_selected_date(datetime.now())
         self.update_slot_summary()
@@ -212,21 +214,27 @@ class Tajm(App):
     def update_tags(self):
             tags = self.query_one("#tags")
             tags_content = ""
-            for tag in self.time_slot.tags:
+            for tag in self.tags:
                 href_tag = f"remove_{tag}"
                 href_tag = urllib.parse.quote(href_tag)
                 tags_content += tag + f" [❌]({href_tag}) "
             tags.update(tags_content)
 
     @on(Input.Changed)
-    def show_invalid_reasons(self, event: Input.Changed) -> None:
+    def input_changed(self, event: Input.Changed) -> None:
         if event.validation_result != None and not event.validation_result.is_valid:
             self.notify(event.validation_result.failure_descriptions[0], severity="error")  
+        if event.input.id == "new_tag":
+            if len(event.value) > 0:
+                query = Tag.select().where(Tag.tag.startswith(event.value))
+                for tag in query:
+                    logging.debug(f"mAtching item={tag}")
 
     @on(Input.Submitted)
-    def show_invalid_reasons(self, event: Input.Submitted) -> None:
+    def input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "new_tag":
-            self.time_slot.add_tag(event.value)
+            tag = Tag.get_or_create(tag=event.value)
+            self.tags.append(event.value)
             self.update_tags() 
             """ then clear the event.input """
             event.input.clear()
@@ -235,7 +243,7 @@ class Tajm(App):
     def check_link(self, markdown) -> None:
         if markdown.href.startswith("remove_"): 
             tag = urllib.parse.unquote(markdown.href[7:])
-            self.time_slot.remove_tag(tag)
+            self.tags.remove(tag)
             self.update_tags()
 
     @on(Button.Pressed)
@@ -246,10 +254,24 @@ class Tajm(App):
             self.time_slot.note = notes.text
             self.time_slot.save()
 
+            """ remember to associate all the tags """
+            for tag in self.tags:
+                tag_in_db = Tag.get(tag=tag)
+                TimeSlotTag.create(timeslot=self.time_slot, tag=tag_in_db)
+
+            """ time to clear the input """
+            self.reset()
+            
+
+
 if __name__ == "__main__":
     logging.basicConfig(filename='tajm.log', encoding='utf-8', level=logging.DEBUG)
     logging.debug("Spinning up")
     init_db()
     app = Tajm()
     app.run()
+    """ time to remove all unused tags """
+    
+
+
     close_db()
