@@ -22,7 +22,6 @@ class TimeSlotTag(BaseModel):
     class Meta:
         primary_key = CompositeKey('timeslot', 'tag')
 
-
 def init_db():
     db.connect()
     db.create_tables([TimeSlot, Tag, TimeSlotTag])

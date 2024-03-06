@@ -1,10 +1,10 @@
-import logging, re, calendar
+import logging, calendar
 import urllib.parse
 from datetime import datetime
 from textual import on, events
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.validation import Function, Number, ValidationResult, Validator
+from textual.validation import ValidationResult, Validator
 from textual.widgets import Header, Footer, Label, Input, Static, Tabs, TextArea, Button, Markdown
 from textual.suggester import Suggester
 from time_slot import *
@@ -197,6 +197,9 @@ class Tajm(App):
         self.update_selected_date(datetime.now())
         self.update_slot_summary()
 
+    def on_unmount(self):
+        logging.debug("what")
+
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle TabActivated message sent by Tabs."""
         label = self.query_one("#sselected")
@@ -261,17 +264,18 @@ class Tajm(App):
 
             """ time to clear the input """
             self.reset()
-            
-
 
 if __name__ == "__main__":
     logging.basicConfig(filename='tajm.log', encoding='utf-8', level=logging.DEBUG)
     logging.debug("Spinning up")
     init_db()
+    """ remove all unused tags from db on start-up """
+    tags_query = Tag.select()
+    for tag in tags_query:
+        timeslottags_query = TimeSlotTag.select().where(TimeSlotTag.tag == tag)
+        if len(timeslottags_query) == 0:
+            Tag.delete().where(Tag.tag == tag).execute()
+
     app = Tajm()
     app.run()
-    """ time to remove all unused tags """
-    
-
-
     close_db()
