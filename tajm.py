@@ -340,6 +340,7 @@ class Tajm(App):
             self.time_slot.save()
 
             """ remember to associate all the tags """
+            TimeSlotTag.delete().where(TimeSlotTag.timeslot == self.time_slot).execute()
             for tag in self.tags:
                 tag_in_db = Tag.get(tag=tag)
                 TimeSlotTag.create(timeslot=self.time_slot, tag=tag_in_db)
