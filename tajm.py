@@ -1,12 +1,13 @@
 import logging, calendar
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
 from textual import on, events
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
 from textual.validation import ValidationResult, Validator
-from textual.widgets import Header, Footer, Label, Input, Static, Tabs, TextArea, Button, Markdown
+from textual.widgets import Header, Footer, Label, Input, Static, Tabs, Tab, TextArea, Button, Markdown, DataTable
 from textual.suggester import Suggester
+from rich.text import Text
 from time_slot import *
 
 class ValidMinMax(Validator):
@@ -140,30 +141,33 @@ class Tajm(App):
         with Container(id="app-grid"):
             with Static("One", classes="box", id="date_row"):
                 with Horizontal():
-                    yield YearInput(id="year", value=f"{self.selected_date.strftime("%Y")}", max_length=4, validators=[ValidMinMax(1, 9999, "year")], validate_on=["changed"])
-                    yield MonthInput(id="month", value=f"{self.selected_date.strftime("%m")}", max_length=2, validators=[ValidMinMax(1, 12, "month")], validate_on=["changed"])
-                    yield DayInput(id="day", value=f"{self.selected_date.strftime("%d")}", max_length=2, validators=[ValidDay(self)], validate_on=["changed"])
+                    yield YearInput(id="year", max_length=4, validators=[ValidMinMax(1, 9999, "year")], validate_on=["changed"])
+                    yield MonthInput(id="month", max_length=2, validators=[ValidMinMax(1, 12, "month")], validate_on=["changed"])
+                    yield DayInput(id="day", max_length=2, validators=[ValidDay(self)], validate_on=["changed"])
                     yield Label(id="week")
-
+        
             with Static("Two", classes="box"):
+                with Vertical():    
+                    yield Label(id="slot_status")
                 with Horizontal():
-                    yield HourInput(id="t1h", value=f"{self.selected_date.strftime("%H")}", max_length=2, validators=[ValidMinMax(0, 23, "hour")], validate_on=["changed"])
-                    yield MinuteInput(id="t1m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
+                    yield HourInput(id="t1h", max_length=2, validators=[ValidMinMax(0, 23, "hour")], validate_on=["changed"])
+                    yield MinuteInput(id="t1m", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
                     yield Label("to")
-                    yield HourInput(id="t2h", value=f"{self.selected_date.strftime("%H")}", max_length=2, validators=[ValidMinMax(0, 23, "hour")], validate_on=["changed"])
-                    yield MinuteInput(id="t2m", value=f"{self.selected_date.strftime("%M")}", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
+                    yield HourInput(id="t2h", max_length=2, validators=[ValidMinMax(0, 23, "hour")], validate_on=["changed"])
+                    yield MinuteInput(id="t2m", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
                     yield Label(id="slot_summary")
                 with Vertical():    
-                    yield Input(id="new_tag", placeholder="Tag...[ARROW RIGHT]...[ENTER]", max_length=25, suggester=TagSuggester())
+                    yield Input(id="new_tag", placeholder="Tag...→...↩", max_length=25, suggester=TagSuggester())
                     yield Markdown(id="tags")
                 with Vertical():    
                     yield TextArea(id="notes")
                 with Horizontal():    
                     yield Button.success(":floppy_disk:", id="save")
-                    yield Button.error(":wastebasket:", disabled=True)
+                    yield Button.success(":new:", id="new")
+                    yield Button.error(":wastebasket:", id="remove", disabled=True)
             with Static("Three", classes="box"):
-                yield Tabs("Day", "Week", "Month", "Year")
-                yield Label(id="sselected")
+                yield Tabs(Tab("Day", id="day_tab"), Tab("Day stats", id="day_stats_tab"), Tab("Week stats", id="week_stats_tab"), Tab("Month stats", id="month_stats_tab"), Tab("Year stats", id="year_stats_tab"))
+                yield DataTable(id="datatable", cursor_type="row")
 
         yield Footer()
 
@@ -172,7 +176,35 @@ class Tajm(App):
         week_label = self.query_one("#week")
         week_label.update(f"{self.selected_date.strftime('%Y-%m-%d')} Week# {self.selected_date.isocalendar().week}")
 
+        """ update the active tab by forcing reload """
+        tabs = self.app.query_one(Tabs)
+        active_tab = tabs.active
+        tabs.watch_active(active_tab, active_tab)
+
+    def reset_for_new_time_slot(self):
+        self.update_selected_date(datetime.now())
+        self.time_slot = None
+        self.query_one("#year").value = f"{self.selected_date.strftime("%Y")}"
+        self.query_one("#month").value = f"{self.selected_date.strftime("%m")}"
+        self.query_one("#day").value = f"{self.selected_date.strftime("%d")}"
+        self.query_one("#t1h").value = f"{self.selected_date.strftime("%H")}"
+        self.query_one("#t1m").value = f"{self.selected_date.strftime("%M")}"
+        self.query_one("#t2h").value = f"{self.selected_date.strftime("%H")}"
+        self.query_one("#t2m").value = f"{self.selected_date.strftime("%M")}"
+        self.tags = []
+        self.update_tags()
+        self.app.query_one("#tags").update("")
+        self.app.query_one("#notes").text = ""
+        self.update_slot_summary()
+
+        """ update the active tab by forcing reload """
+        tabs = self.app.query_one(Tabs)
+        active_tab = tabs.active
+        tabs.watch_active(active_tab, active_tab)
+
     def update_slot_summary(self):
+        self.app.query_one("#slot_status").update("New!")
+
         """ start time """
         t1 = self.selected_date.replace(hour=int(self.app.query_one("#t1h").value), minute=int(self.app.query_one("#t1m").value))
         """ end time """
@@ -181,35 +213,88 @@ class Tajm(App):
         self.time_slot.start_at = t1
         self.time_slot.end_at = t2
         slot_summary_label = self.query_one("#slot_summary")
-        slot_summary_label.update(f"{str(self.time_slot.get_difference()[0]).zfill(1)}h {str(self.time_slot.get_difference()[1]).zfill(2)}m")
+        slot_summary_label.update(f"{str(self.time_slot.get_difference()[0]).zfill(2)}h {str(self.time_slot.get_difference()[1]).zfill(2)}m")
+
+        """ disable remove button """
+        self.app.query_one("#remove").disabled = True
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.dark = not self.dark
 
-    def reset(self):
-        self.tags = []
-        self.update_tags()
-        self.app.query_one("#notes").text = ""
-        self.update_slot_summary()
-
     def on_mount(self):
-        self.update_selected_date(datetime.now())
-        self.update_slot_summary()
+        self.reset_for_new_time_slot()
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle TabActivated message sent by Tabs."""
-        label = self.query_one("#sselected")
-        if event.tab is None:
-            # When the tabs are cleared, event.tab will be None
-            label.visible = False
-        else:
-            label.visible = True
-            label.update(self.selected_date.strftime("%Y-%m-%d"))
+        datatable = self.query_one("#datatable")
+        if event.tab.id == "day_tab":
+            first_second = self.selected_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            last_second = first_second + timedelta(days=1)
 
-    def action_clear(self) -> None:
-        """Clear the tabs."""
-        self.query_one("#sselected").clear()
+            data = [
+                ("start", "end", "duration", "tags"),
+            ]
+            data_keys = []
+            query_ts = TimeSlot.select().where(TimeSlot.start_at >= first_second).where(TimeSlot.start_at < last_second).order_by(TimeSlot.start_at.asc())
+            total_duration = 0
+            for timeslot in query_ts:
+                start_str = f"{str(timeslot.start_at.hour).zfill(2)}:{str(timeslot.start_at.minute).zfill(2)}"
+                end_str = f"{str(timeslot.end_at.hour).zfill(2)}:{str(timeslot.end_at.minute).zfill(2)}"
+
+                duration = timeslot.end_at - timeslot.start_at
+                total_duration += duration.seconds
+                duration_str = f"{str(duration.seconds//3600).zfill(2)}:{str((duration.seconds//60)%60).zfill(2)}"
+
+                tags_str = ""
+                query_t = TimeSlotTag.select().where(TimeSlotTag.timeslot == timeslot)
+                for tag in query_t:
+                    tags_str += f"*{tag.tag} "
+
+                data.append((start_str, end_str, duration_str, tags_str))
+                data_keys.append(timeslot.id)
+                logging.debug(timeslot)
+
+            """" add the duration total """
+            total_duration_str = f"{str(total_duration//3600).zfill(2)}:{str((total_duration//60)%60).zfill(2)}"
+            data.append(("", "", Text(total_duration_str, style="italic #03AC13"), ""))
+            datatable.clear(columns=True)
+            datatable.add_columns(*data[0])
+            data_keys.append("total")
+            i = 0
+            for data_row in data[1:]:
+                datatable.add_row(data_row[0], data_row[1], data_row[2], data_row[3], key=data_keys[i])
+                i += 1    
+                
+    def load_time_slot(self, id):
+        time_slot = TimeSlot.select().where(TimeSlot.id == id)
+        self.time_slot = time_slot[0]
+
+        self.app.query_one("#slot_status").update("Editing old")
+
+        """ update start time """
+        self.app.query_one("#t1h").value = str(self.time_slot.start_at.hour).zfill(2)
+        self.app.query_one("#t1m").value = str(self.time_slot.start_at.minute).zfill(2)
+
+        """ update end time """
+        self.app.query_one("#t2h").value = str(self.time_slot.end_at.hour).zfill(2)
+        self.app.query_one("#t2m").value = str(self.time_slot.end_at.minute).zfill(2)
+
+        slot_summary_label = self.query_one("#slot_summary")
+        slot_summary_label.update(f"{str(self.time_slot.get_difference()[0]).zfill(2)}h {str(self.time_slot.get_difference()[1]).zfill(2)}m")
+
+        """ update tags """
+        self.tags = []
+        query = TimeSlotTag.select().where(TimeSlotTag.timeslot == self.time_slot)
+        for timeslottag in query:
+            self.tags.append(timeslottag.tag.tag)
+        self.update_tags() 
+
+        """ update notes """
+        self.app.query_one("#notes").load_text(self.time_slot.note)
+
+        """ enable remove button """
+        self.app.query_one("#remove").disabled = False
 
     def update_tags(self):
             tags = self.query_one("#tags")
@@ -259,20 +344,26 @@ class Tajm(App):
                 tag_in_db = Tag.get(tag=tag)
                 TimeSlotTag.create(timeslot=self.time_slot, tag=tag_in_db)
 
-            """ time to clear the input """
-            self.reset()
+            self.reset_for_new_time_slot()
+
+        if pressed.button.id == "remove":
+            self.time_slot.delete_instance(recursive=True)
+            self.reset_for_new_time_slot()
+
+        if pressed.button.id == "new":
+            self.reset_for_new_time_slot()
+
+    @on(DataTable.RowSelected)
+    def row_selected(self, message):
+        """ we have the time slot id in message.row_key.value - now load"""
+        if message.row_key != "total":
+            self.load_time_slot(message.row_key.value)
+        logging.debug("this is awesome")
 
 if __name__ == "__main__":
     logging.basicConfig(filename='tajm.log', encoding='utf-8', level=logging.DEBUG)
     logging.debug("Spinning up")
     init_db()
-    """ remove all unused tags from db on start-up """
-    tags_query = Tag.select()
-    for tag in tags_query:
-        timeslottags_query = TimeSlotTag.select().where(TimeSlotTag.tag == tag)
-        if len(timeslottags_query) == 0:
-            Tag.delete().where(Tag.tag == tag).execute()
-
     app = Tajm()
     app.run()
     close_db()

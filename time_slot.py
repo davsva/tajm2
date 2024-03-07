@@ -12,6 +12,9 @@ class TimeSlot(BaseModel):
         diff = self.end_at - self.start_at
         return (diff.seconds//3600, (diff.seconds//60)%60)
     
+    def __str__(self):
+        return f"start_at={self.start_at} end_at={self.end_at} note={self.note}"
+    
 class Tag(BaseModel):
     tag = CharField(primary_key=True)
 
