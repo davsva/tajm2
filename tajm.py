@@ -144,11 +144,10 @@ class Tajm(App):
                     yield YearInput(id="year", max_length=4, validators=[ValidMinMax(1, 9999, "year")], validate_on=["changed"])
                     yield MonthInput(id="month", max_length=2, validators=[ValidMinMax(1, 12, "month")], validate_on=["changed"])
                     yield DayInput(id="day", max_length=2, validators=[ValidDay(self)], validate_on=["changed"])
+                    yield Label(id="slot_status")
                     yield Label(id="week")
         
             with Static("Two", classes="box"):
-                with Vertical():    
-                    yield Label(id="slot_status")
                 with Horizontal():
                     yield HourInput(id="t1h", max_length=2, validators=[ValidMinMax(0, 23, "hour")], validate_on=["changed"])
                     yield MinuteInput(id="t1m", max_length=2, validators=[ValidMinMax(0, 59, "minute")], validate_on=["changed"])
@@ -183,7 +182,7 @@ class Tajm(App):
 
     def reset_for_new_time_slot(self):
         self.update_selected_date(datetime.now())
-        self.time_slot = None
+        self.time_slot = TimeSlot()
         self.query_one("#year").value = f"{self.selected_date.strftime("%Y")}"
         self.query_one("#month").value = f"{self.selected_date.strftime("%m")}"
         self.query_one("#day").value = f"{self.selected_date.strftime("%d")}"
@@ -195,6 +194,11 @@ class Tajm(App):
         self.update_tags()
         self.app.query_one("#tags").update("")
         self.app.query_one("#notes").text = ""
+
+        self.app.query_one("#slot_status").update("New")
+        self.app.query_one("#slot_status").remove_class("white_text_on_red_background")
+        self.app.query_one("#slot_status").add_class("black_text_on_yellowgreen_background")
+
         self.update_slot_summary()
 
         """ update the active tab by forcing reload """
@@ -206,13 +210,10 @@ class Tajm(App):
         self.query_one("#t1h").focus()
 
     def update_slot_summary(self):
-        self.app.query_one("#slot_status").update("New!")
-
         """ start time """
         t1 = self.selected_date.replace(hour=int(self.app.query_one("#t1h").value), minute=int(self.app.query_one("#t1m").value))
         """ end time """
         t2 = self.selected_date.replace(hour=int(self.app.query_one("#t2h").value), minute=int(self.app.query_one("#t2m").value))
-        self.time_slot = TimeSlot()
         self.time_slot.start_at = t1
         self.time_slot.end_at = t2
         slot_summary_label = self.query_one("#slot_summary")
@@ -270,10 +271,13 @@ class Tajm(App):
                 i += 1    
                 
     def load_time_slot(self, id):
+        logging.debug(f"load_time_slot({id})")
         time_slot = TimeSlot.select().where(TimeSlot.id == id)
         self.time_slot = time_slot[0]
 
-        self.app.query_one("#slot_status").update("Editing old")
+        self.app.query_one("#slot_status").update("Editing")
+        self.app.query_one("#slot_status").remove_class("black_text_on_yellowgreen_background")
+        self.app.query_one("#slot_status").add_class("white_text_on_red_background")
 
         """ update start time """
         self.app.query_one("#t1h").value = str(self.time_slot.start_at.hour).zfill(2)
@@ -348,7 +352,7 @@ class Tajm(App):
                 return
 
             """ §2 The timeslot must not interfere with already stored time slots """
-            query = TimeSlot.select().where(
+            query = TimeSlot.select().where(TimeSlot.id != self.time_slot.id).where(
                 ((TimeSlot.start_at < self.time_slot.start_at) &
                 (TimeSlot.end_at > self.time_slot.start_at) &
                 (TimeSlot.end_at < self.time_slot.end_at)) 
@@ -364,6 +368,8 @@ class Tajm(App):
                 (TimeSlot.end_at > self.time_slot.end_at))
             )
             if len(query) > 0:
+                for ts in query:
+                    logging.debug(f"Violation of time slot id = {ts.id}")
                 self.app.notify("No save due to violation of §2 - 'The timeslot must not interfere with already stored time slots'", severity="error")
                 return
             
@@ -391,7 +397,6 @@ class Tajm(App):
         """ we have the time slot id in message.row_key.value - now load"""
         if message.row_key != "total":
             self.load_time_slot(message.row_key.value)
-        logging.debug("this is awesome")
 
 if __name__ == "__main__":
     logging.basicConfig(filename='tajm.log', encoding='utf-8', level=logging.DEBUG)

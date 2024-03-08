@@ -61,3 +61,13 @@ Input {
 Tabs {
     dock: top;
 }
+
+.white_text_on_red_background {
+    color: white;
+    background: red;
+}
+
+.black_text_on_yellowgreen_background {
+    color: black;
+    background: yellowgreen;
+}
