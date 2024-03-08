@@ -202,6 +202,9 @@ class Tajm(App):
         active_tab = tabs.active
         tabs.watch_active(active_tab, active_tab)
 
+        # Set focus on the t1h input field
+        self.query_one("#t1h").focus()
+
     def update_slot_summary(self):
         self.app.query_one("#slot_status").update("New!")
 
@@ -335,6 +338,35 @@ class Tajm(App):
     def button_clicked(self, pressed) -> None:
         if pressed.button.id == "save":
             """ here the user's intent is to save the time slot """
+
+            """ do some validations according to the tajm2 approved laws"""
+            difference = self.time_slot.end_at - self.time_slot.start_at
+
+            """ §1 The timeslot must have a duration that is 1 minute or more """
+            if difference < timedelta(minutes=1):
+                self.app.notify("No save due to violation of §1 - 'The timeslot must have a duration that is 1 minute or more'", severity="error")
+                return
+
+            """ §2 The timeslot must not interfere with already stored time slots """
+            query = TimeSlot.select().where(
+                ((TimeSlot.start_at < self.time_slot.start_at) &
+                (TimeSlot.end_at > self.time_slot.start_at) &
+                (TimeSlot.end_at < self.time_slot.end_at)) 
+                |
+                ((TimeSlot.start_at > self.time_slot.start_at) &
+                (TimeSlot.start_at < self.time_slot.end_at) &
+                (TimeSlot.end_at > self.time_slot.end_at))
+                |
+                ((TimeSlot.start_at > self.time_slot.start_at) &
+                (TimeSlot.end_at < self.time_slot.end_at))
+                |
+                ((TimeSlot.start_at < self.time_slot.start_at) &
+                (TimeSlot.end_at > self.time_slot.end_at))
+            )
+            if len(query) > 0:
+                self.app.notify("No save due to violation of §2 - 'The timeslot must not interfere with already stored time slots'", severity="error")
+                return
+            
             notes = self.query_one("#notes")
             self.time_slot.note = notes.text
             self.time_slot.save()
