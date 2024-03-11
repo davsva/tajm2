@@ -81,7 +81,6 @@ class Tajm(App):
         tabs.watch_active(active_tab, active_tab)
 
     def reset_for_new_time_slot(self):
-        self.update_selected_date(datetime.now())
         self.time_slot = TimeSlot()
         self.query_one("#year").value = f"{self.selected_date.strftime("%Y")}"
         self.query_one("#month").value = f"{self.selected_date.strftime("%m")}"
@@ -127,11 +126,13 @@ class Tajm(App):
         self.dark = not self.dark
 
     def on_mount(self):
+        self.update_selected_date(datetime.now())
         self.reset_for_new_time_slot()
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle TabActivated message sent by Tabs."""
         datatable = self.query_one("#datatable")
+        datatable.clear(columns=True)
         if event.tab.id == "day_tab":
             first_second = self.selected_date.replace(hour=0, minute=0, second=0, microsecond=0)
             last_second = first_second + timedelta(days=1)
@@ -162,14 +163,73 @@ class Tajm(App):
             """" add the duration total """
             total_duration_str = f"{str(total_duration//3600).zfill(2)}:{str((total_duration//60)%60).zfill(2)}"
             data.append(("", "", Text(total_duration_str, style="italic #03AC13"), ""))
-            datatable.clear(columns=True)
             datatable.add_columns(*data[0])
             data_keys.append("total")
             i = 0
             for data_row in data[1:]:
                 datatable.add_row(data_row[0], data_row[1], data_row[2], data_row[3], key=data_keys[i])
-                i += 1    
-                
+                i += 1
+        if event.tab.id == "day_stats_tab":
+            # TODO Challenge 1 find the 1 st second and the last second within the selected day
+            data = [
+                ("tag", "duration"),
+                ("day fejk", "06:30"),
+                ("wonderbomb", "01:30")
+            ]
+            data_keys = []
+            datatable.add_columns(*data[0])
+            data_keys.append(1000)
+            data_keys.append(1001)
+            i = 0
+            for data_row in data[1:]:
+                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                i += 1
+        if event.tab.id == "week_stats_tab":
+            # TODO Challenge 2 find the 1 st second and the last second within the selected week
+            data = [
+                ("tag", "duration"),
+                ("week fejk", "06:30"),
+                ("wonderbomb", "01:30")
+            ]
+            data_keys = []
+            datatable.add_columns(*data[0])
+            data_keys.append(1000)
+            data_keys.append(1001)
+            i = 0
+            for data_row in data[1:]:
+                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                i += 1
+        if event.tab.id == "month_stats_tab":
+            # TODO Challenge 3 find the 1 st second and the last second within the selected month
+            data = [
+                ("tag", "duration"),
+                ("month fejk", "06:30"),
+                ("wonderbomb", "01:30")
+            ]
+            data_keys = []
+            datatable.add_columns(*data[0])
+            data_keys.append(1000)
+            data_keys.append(1001)
+            i = 0
+            for data_row in data[1:]:
+                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                i += 1
+        if event.tab.id == "year_stats_tab":
+            # TODO Challenge 4 find the 1 st second and the last second within the selected year
+            data = [
+                ("tag", "duration"),
+                ("year fejk", "06:30"),
+                ("wonderbomb", "01:30")
+            ]
+            data_keys = []
+            datatable.add_columns(*data[0])
+            data_keys.append(1000)
+            data_keys.append(1001)
+            i = 0
+            for data_row in data[1:]:
+                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                i += 1
+
     def load_time_slot(self, id):
         logging.debug(f"load_time_slot({id})")
         time_slot = TimeSlot.select().where(TimeSlot.id == id)
