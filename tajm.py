@@ -1,115 +1,16 @@
-import logging, calendar
+import logging
 import urllib.parse
 from datetime import datetime, timedelta
-from textual import on, events
+from textual import on
 from textual.app import App, ComposeResult
 from textual.containers import Container, Horizontal, Vertical
-from textual.validation import ValidationResult, Validator
 from textual.widgets import Header, Footer, Label, Input, Static, Tabs, Tab, TextArea, Button, Markdown, DataTable
 from textual.suggester import Suggester
 from rich.text import Text
 from time_slot import *
-
-class ValidMinMax(Validator):
-
-    def __init__(self, min, max, entity):
-        self.min = min
-        self.max = max
-        self.entity = entity
-  
-    def validate(self, value: str) -> ValidationResult:
-        if value.isdigit() and int(value) >= self.min and int(value) <= self.max: 
-            return self.success()
-        else:
-            return self.failure(f"That's not a valid {self.entity}")
-
-class ValidDay(Validator):
-
-    def __init__(self, app):
-        self.app = app
-
-    def validate(self, value: str) -> ValidationResult:
-        max_day = calendar.monthrange(self.app.selected_date.year, self.app.selected_date.month)[1]
-        if value.isdigit() and int(value) >= 1 and int(value) <= max_day: 
-            return self.success()
-        else:
-            return self.failure("That's not a valid day within the month")
-
-class YearInput(Input):
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "up":
-            if ValidMinMax(1, 9999, "year").validate(str(int(self.value) + 1)).is_valid:
-                self.value = str(int(self.value) + 1)
-        elif event.key == "down":
-            if ValidMinMax(1, 9999, "year").validate(str(int(self.value) - 1)).is_valid:
-                self.value = str(int(self.value) - 1)
-
-    def on_blur(self):
-        if ValidMinMax(1, 9999, "year").validate(self.value).is_valid:
-            try:
-                new_date = self.app.selected_date.replace(year=int(self.value))
-                self.app.update_selected_date(new_date)
-            except:
-                self.app.notify("Invalid date!", severity="error") 
-
-class MonthInput(Input):
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "up":
-            if ValidMinMax(1, 12, "month").validate(str(int(self.value) + 1)).is_valid:
-                self.value = str(int(self.value) + 1).zfill(2)
-        elif event.key == "down":
-            if ValidMinMax(1, 12, "month").validate(str(int(self.value) - 1)).is_valid:
-                self.value = str(int(self.value) - 1).zfill(2)
-
-    def on_blur(self):
-        if ValidMinMax(1, 12, "month").validate(self.value).is_valid:
-            try:
-                new_date = self.app.selected_date.replace(month=int(self.value))
-                self.app.update_selected_date(new_date)
-            except:
-                self.app.notify("Invalid date!", severity="error") 
-
-class DayInput(Input):
-    def on_key(self, event: events.Key) -> None:
-        max_day = calendar.monthrange(self.app.selected_date.year, self.app.selected_date.month)[1]
-        if event.key == "up":
-            if ValidDay(self.app).validate(str(int(self.value) + 1)).is_valid:
-                self.value = str(int(self.value) + 1).zfill(2)
-        elif event.key == "down":
-            if ValidDay(self.app).validate(str(int(self.value) - 1)).is_valid:
-                self.value = str(int(self.value) - 1).zfill(2)
-
-    def on_blur(self):
-        if ValidDay(self.app).validate(self.value).is_valid:
-            try:
-                new_date = self.app.selected_date.replace(day=int(self.value))
-                self.app.update_selected_date(new_date)
-            except:
-                self.app.notify("Invalid date!", severity="error") 
-
-class HourInput(Input):
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "up":
-            if ValidMinMax(0, 23, "hour").validate(str(int(self.value) + 1)).is_valid:
-                self.value = str(int(self.value) + 1).zfill(2)
-        elif event.key == "down":
-            if ValidMinMax(0, 23, "hour").validate(str(int(self.value) - 1)).is_valid:
-                self.value = str(int(self.value) - 1).zfill(2)
-
-    def on_blur(self):
-        self.app.update_slot_summary()
-
-class MinuteInput(Input):
-    def on_key(self, event: events.Key) -> None:
-        if event.key == "up":
-            if ValidMinMax(0, 59, "minute").validate(str(int(self.value) + 1)).is_valid:
-                self.value = str(int(self.value) + 1).zfill(2)
-        elif event.key == "down":
-            if ValidMinMax(0, 59, "minute").validate(str(int(self.value) - 1)).is_valid:
-                self.value = str(int(self.value) - 1).zfill(2)
-
-    def on_blur(self):
-        self.app.update_slot_summary()
+from custom_validators import ValidMinMax, ValidDay
+from constants import *
+from custom_inputs import YearInput, MonthInput, DayInput, HourInput, MinuteInput
 
 class TagSuggester(Suggester):
     async def get_suggestion(self, value):
@@ -121,7 +22,6 @@ class TagSuggester(Suggester):
 
 class Tajm(App):
     """ A Textual app to manage time slots """
-
     BINDINGS = [("q", "quit", "Quit"), ("d", "toggle_dark", "Toggle dark mode")]
     CSS_PATH = "layout.tcss"
     AUTO_FOCUS = "#year"
@@ -201,6 +101,9 @@ class Tajm(App):
 
         self.update_slot_summary()
 
+        """ disable remove button """
+        self.app.query_one("#remove").disabled = True
+
         """ update the active tab by forcing reload """
         tabs = self.app.query_one(Tabs)
         active_tab = tabs.active
@@ -218,9 +121,6 @@ class Tajm(App):
         self.time_slot.end_at = t2
         slot_summary_label = self.query_one("#slot_summary")
         slot_summary_label.update(f"{str(self.time_slot.get_difference()[0]).zfill(2)}h {str(self.time_slot.get_difference()[1]).zfill(2)}m")
-
-        """ disable remove button """
-        self.app.query_one("#remove").disabled = True
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -315,12 +215,40 @@ class Tajm(App):
     @on(Input.Changed)
     def input_changed(self, event: Input.Changed) -> None:
         if event.validation_result != None and not event.validation_result.is_valid:
-            self.notify(event.validation_result.failure_descriptions[0], severity="error")  
+            self.notify(event.validation_result.failure_descriptions[0], severity="error")
+            return 
         if event.input.id == "new_tag":
             if len(event.value) > 0:
                 query = Tag.select().where(Tag.tag.startswith(event.value))
                 for tag in query:
                     logging.debug(f"mAtching item={tag}")
+        if event.input.id == "year":
+            if ValidMinMax(1, 9999, "year").validate(event.input.value).is_valid:
+                try:
+                    new_date = self.app.selected_date.replace(year=int(event.input.value))
+                    self.app.update_selected_date(new_date)
+                except:
+                    self.app.notify("Invalid date!", severity="error") 
+
+        if event.input.id == "month":
+            if ValidMinMax(1, 12, "month").validate(event.input.value).is_valid:
+                try:
+                    new_date = self.app.selected_date.replace(month=int(event.input.value))
+                    self.app.update_selected_date(new_date)
+                except:
+                    self.app.notify("Invalid date!", severity="error") 
+
+
+        if event.input.id == "day":
+            if ValidDay(self.app).validate(event.input.value).is_valid:
+                try:
+                    new_date = self.app.selected_date.replace(day=int(event.input.value))
+                    self.app.update_selected_date(new_date)
+                except:
+                    self.app.notify("Invalid date!", severity="error")
+
+        if isinstance(event.input, HourInput) or isinstance(event.input, MinuteInput):
+            self.app.update_slot_summary()
 
     @on(Input.Submitted)
     def input_submitted(self, event: Input.Submitted) -> None:
