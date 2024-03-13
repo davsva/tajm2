@@ -1,9 +1,9 @@
-import logging
+import logging, calendar
 import urllib.parse
 from datetime import datetime, timedelta
 from textual import on
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
+from textual.containers import Container, Horizontal, Vertical, VerticalScroll
 from textual.widgets import Header, Footer, Label, Input, Static, Tabs, Tab, TextArea, Button, Markdown, DataTable
 from textual.suggester import Suggester
 from rich.text import Text
@@ -66,7 +66,8 @@ class Tajm(App):
                     yield Button.error(":wastebasket:", id="remove", disabled=True)
             with Static("Three", classes="box"):
                 yield Tabs(Tab("Day", id="day_tab"), Tab("Day stats", id="day_stats_tab"), Tab("Week stats", id="week_stats_tab"), Tab("Month stats", id="month_stats_tab"), Tab("Year stats", id="year_stats_tab"))
-                yield DataTable(id="datatable", cursor_type="row")
+                with VerticalScroll():
+                    yield DataTable(id="datatable", cursor_type="row")
 
         yield Footer()
 
@@ -126,8 +127,30 @@ class Tajm(App):
         self.dark = not self.dark
 
     def on_mount(self):
-        self.update_selected_date(datetime.now())
+        self.update_selected_date(datetime.now().replace(second=0, microsecond=0))
         self.reset_for_new_time_slot()
+
+    def get_summary(self, start_date, end_date):
+        tags_dict = {}
+
+        """ process all the time slots within the dates """
+        query_all_ts = TimeSlot.select().where((TimeSlot.start_at >= start_date) & (TimeSlot.end_at < end_date))
+
+        """ for each time slot - sum the duration for each tag """
+        for ts in query_all_ts:
+            duration_in_minutes = (ts.end_at - ts.start_at).seconds // 60
+            query_all_tags = TimeSlotTag.select().where(TimeSlotTag.timeslot == ts)
+            for tag in query_all_tags:
+                tags_dict[str(tag.tag)] = tags_dict.get(str(tag.tag), 0) + duration_in_minutes
+
+        """ order by duration desc """
+        sorted_list = sorted(tags_dict.items(), key=lambda x:x[1], reverse=True)
+
+        """ process the sorted_dict and replace the duration in minutes to hour:minute format before returning """
+        output = [("tag", "duration")]
+        for tag in sorted_list:
+            output.append((tag[0], f"{tag[1] // 60}:{str(tag[1] % 60).zfill(2)}"))        
+        return output
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle TabActivated message sent by Tabs."""
@@ -170,64 +193,46 @@ class Tajm(App):
                 datatable.add_row(data_row[0], data_row[1], data_row[2], data_row[3], key=data_keys[i])
                 i += 1
         if event.tab.id == "day_stats_tab":
-            # TODO Challenge 1 find the 1 st second and the last second within the selected day
-            data = [
-                ("tag", "duration"),
-                ("day fejk", "06:30"),
-                ("wonderbomb", "01:30")
-            ]
-            data_keys = []
+            start_date = self.selected_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + timedelta(days=1)
+            logging.debug(f"Show stats for day {start_date} to {end_date}")
+            data = self.get_summary(start_date, end_date)
             datatable.add_columns(*data[0])
-            data_keys.append(1000)
-            data_keys.append(1001)
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                datatable.add_row(data_row[0], data_row[1], key=i)
                 i += 1
         if event.tab.id == "week_stats_tab":
-            # TODO Challenge 2 find the 1 st second and the last second within the selected week
-            data = [
-                ("tag", "duration"),
-                ("week fejk", "06:30"),
-                ("wonderbomb", "01:30")
-            ]
-            data_keys = []
+            day_of_week = self.selected_date.isoweekday() - 1
+            start_date = self.selected_date.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=day_of_week)
+            end_date = start_date + timedelta(days=7)
+            logging.debug(f"Show stats for week {start_date} to {end_date}")
+            data = self.get_summary(start_date, end_date)
             datatable.add_columns(*data[0])
-            data_keys.append(1000)
-            data_keys.append(1001)
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                datatable.add_row(data_row[0], data_row[1], key=i)
                 i += 1
         if event.tab.id == "month_stats_tab":
-            # TODO Challenge 3 find the 1 st second and the last second within the selected month
-            data = [
-                ("tag", "duration"),
-                ("month fejk", "06:30"),
-                ("wonderbomb", "01:30")
-            ]
-            data_keys = []
+            max_day = calendar.monthrange(self.selected_date.year, self.selected_date.month)[1]
+            start_date = self.selected_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date + timedelta(days=max_day)
+            logging.debug(f"Show stats for month {start_date} to {end_date}")
+            data = self.get_summary(start_date, end_date)
             datatable.add_columns(*data[0])
-            data_keys.append(1000)
-            data_keys.append(1001)
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                datatable.add_row(data_row[0], data_row[1], key=i)
                 i += 1
         if event.tab.id == "year_stats_tab":
-            # TODO Challenge 4 find the 1 st second and the last second within the selected year
-            data = [
-                ("tag", "duration"),
-                ("year fejk", "06:30"),
-                ("wonderbomb", "01:30")
-            ]
-            data_keys = []
+            start_date = self.selected_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = self.selected_date.replace(month=12, day=31, hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            logging.debug(f"Show stats for year {start_date} to {end_date}")
+            data = self.get_summary(start_date, end_date)
             datatable.add_columns(*data[0])
-            data_keys.append(1000)
-            data_keys.append(1001)
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=data_keys[i])
+                datatable.add_row(data_row[0], data_row[1], key=i)
                 i += 1
 
     def load_time_slot(self, id):
