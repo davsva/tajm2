@@ -200,7 +200,7 @@ class Tajm(App):
             datatable.add_columns(*data[0])
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=i)
+                datatable.add_row(data_row[0], data_row[1], key=f"skip_{i}")
                 i += 1
         if event.tab.id == "week_stats_tab":
             day_of_week = self.selected_date.isoweekday() - 1
@@ -211,7 +211,7 @@ class Tajm(App):
             datatable.add_columns(*data[0])
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=i)
+                datatable.add_row(data_row[0], data_row[1], key=f"skip_{i}")
                 i += 1
         if event.tab.id == "month_stats_tab":
             max_day = calendar.monthrange(self.selected_date.year, self.selected_date.month)[1]
@@ -222,7 +222,7 @@ class Tajm(App):
             datatable.add_columns(*data[0])
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=i)
+                datatable.add_row(data_row[0], data_row[1], key=f"skip_{i}")
                 i += 1
         if event.tab.id == "year_stats_tab":
             start_date = self.selected_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -232,7 +232,7 @@ class Tajm(App):
             datatable.add_columns(*data[0])
             i = 0
             for data_row in data[1:]:
-                datatable.add_row(data_row[0], data_row[1], key=i)
+                datatable.add_row(data_row[0], data_row[1], key=f"skip_{i}")
                 i += 1
 
     def load_time_slot(self, id):
@@ -387,8 +387,8 @@ class Tajm(App):
 
     @on(DataTable.RowSelected)
     def row_selected(self, message):
-        """ we have the time slot id in message.row_key.value - now load"""
-        if message.row_key != "total":
+        """ we have the time slot id in message.row_key.value - now load """
+        if (message.row_key != "total") and (str(message.row_key.value).startswith("skip_") == False):
             self.load_time_slot(message.row_key.value)
 
 if __name__ == "__main__":
