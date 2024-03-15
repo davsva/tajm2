@@ -558,7 +558,7 @@ class Tajm2(App):
             self.load_time_slot(message.row_key.value)
 
 
-def run_app():
+def run_the_app():
     """single point to run the app"""
     logging.basicConfig(filename="tajm.log", encoding="utf-8", level=logging.DEBUG)
     logging.debug("Spinning up")
@@ -569,4 +569,4 @@ def run_app():
 
 
 if __name__ == "__main__":
-    run_app()
+    run_the_app()
