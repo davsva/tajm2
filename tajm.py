@@ -25,6 +25,7 @@ from rich.text import Text
 from time_slot import TimeSlot, Tag, TimeSlotTag, init_db, close_db
 from custom_validators import ValidMinMax, ValidDay
 from custom_inputs import YearInput, MonthInput, DayInput, HourInput, MinuteInput
+from constants import Constants
 
 
 class TagSuggester(Suggester):
@@ -366,7 +367,7 @@ class Tajm(App):
         """loads the specified time slot"""
         logging.debug("load_time_slot(%s)", db_id)
         time_slot = TimeSlot.select().where(
-            TimeSlot.id == db_id # pylint: disable=E1101
+            TimeSlot.id == db_id  # pylint: disable=E1101
         )
         self.time_slot = time_slot[0]  # pylint: disable=E1136
 
@@ -424,12 +425,20 @@ class Tajm(App):
             )
             return
         if event.input.id == "year":
-            if ValidMinMax(1, 9999, "year").validate(event.input.value).is_valid:
+            if (
+                ValidMinMax(Constants.YEAR_MIN, Constants.YEAR_MAX, "year")
+                .validate(event.input.value)
+                .is_valid
+            ):
                 new_date = self.app.selected_date.replace(year=int(event.input.value))
                 self.app.update_selected_date(new_date)
 
         if event.input.id == "month":
-            if ValidMinMax(1, 12, "month").validate(event.input.value).is_valid:
+            if (
+                ValidMinMax(Constants.MONTH_MIN, Constants.MONTH_MAX, "month")
+                .validate(event.input.value)
+                .is_valid
+            ):
                 new_date = self.app.selected_date.replace(month=int(event.input.value))
                 self.app.update_selected_date(new_date)
 
