@@ -4,13 +4,17 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tajm2"
-version = "0.0.4"
+version = "0.0.7"
 authors = [
   { name="David Svanberg", email="david.svanberg@gmail.com" },
 ]
-description = "tajm2 is a command line GUI tool built on Textual to manage time slots."
+description = "tajm2 is a command line GUI tool built on textual to manage and store time slots locally in a SQLite database using peewee."
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = [
+  "peewee",
+  "textual",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",

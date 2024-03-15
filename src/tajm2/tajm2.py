@@ -22,10 +22,25 @@ from textual.widgets import (
 )
 from textual.suggester import Suggester
 from rich.text import Text
-from time_slot import TimeSlot, Tag, TimeSlotTag, init_db, close_db
-from custom_validators import ValidMinMax, ValidDay
-from custom_inputs import YearInput, MonthInput, DayInput, HourInput, MinuteInput
-from constants import Constants
+
+try:
+    from time_slot import TimeSlot, Tag, TimeSlotTag, init_db, close_db
+except ImportError:
+    from .time_slot import TimeSlot, Tag, TimeSlotTag, init_db, close_db
+
+try:
+    from custom_validators import ValidMinMax, ValidDay
+except ImportError:
+    from .custom_validators import ValidMinMax, ValidDay
+
+try:
+    from custom_inputs import YearInput, MonthInput, DayInput, HourInput, MinuteInput
+except ImportError:
+    from .custom_inputs import YearInput, MonthInput, DayInput, HourInput, MinuteInput
+try:
+    from constants import Constants
+except ImportError:
+    from .constants import Constants
 
 
 class TagSuggester(Suggester):

@@ -2,8 +2,16 @@
 
 from textual.widgets import Input
 from textual import events
-from custom_validators import ValidMinMax, ValidDay
-from constants import Constants
+
+try:
+    from custom_validators import ValidMinMax, ValidDay
+except ImportError:
+    from .custom_validators import ValidMinMax, ValidDay
+
+try:
+    from constants import Constants
+except ImportError:
+    from .constants import Constants
 
 
 class YearInput(Input):

@@ -7,7 +7,11 @@ from peewee import (
     ForeignKeyField,
     CompositeKey,
 )
-from base_model import BaseModel, db
+
+try:
+    from base_model import BaseModel, db
+except ImportError:
+    from .base_model import BaseModel, db
 
 
 class TimeSlot(BaseModel):
