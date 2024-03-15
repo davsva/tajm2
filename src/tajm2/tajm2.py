@@ -80,13 +80,19 @@ class Tajm2(App):
                     yield YearInput(
                         id="year",
                         max_length=4,
-                        validators=[ValidMinMax(1, 9999, "year")],
+                        validators=[
+                            ValidMinMax(Constants.YEAR_MIN, Constants.YEAR_MAX, "year")
+                        ],
                         validate_on=["changed"],
                     )
                     yield MonthInput(
                         id="month",
                         max_length=2,
-                        validators=[ValidMinMax(1, 12, "month")],
+                        validators=[
+                            ValidMinMax(
+                                Constants.MONTH_MIN, Constants.MONTH_MAX, "month"
+                            )
+                        ],
                         validate_on=["changed"],
                     )
                     yield DayInput(
@@ -103,26 +109,38 @@ class Tajm2(App):
                     yield HourInput(
                         id="t1h",
                         max_length=2,
-                        validators=[ValidMinMax(0, 23, "hour")],
+                        validators=[
+                            ValidMinMax(Constants.HOUR_MIN, Constants.HOUR_MAX, "hour")
+                        ],
                         validate_on=["changed"],
                     )
                     yield MinuteInput(
                         id="t1m",
                         max_length=2,
-                        validators=[ValidMinMax(0, 59, "minute")],
+                        validators=[
+                            ValidMinMax(
+                                Constants.MINUTE_MIN, Constants.MINUTE_MIN, "minute"
+                            )
+                        ],
                         validate_on=["changed"],
                     )
                     yield Label("to")
                     yield HourInput(
                         id="t2h",
                         max_length=2,
-                        validators=[ValidMinMax(0, 23, "hour")],
+                        validators=[
+                            ValidMinMax(Constants.HOUR_MIN, Constants.HOUR_MAX, "hour")
+                        ],
                         validate_on=["changed"],
                     )
                     yield MinuteInput(
                         id="t2m",
                         max_length=2,
-                        validators=[ValidMinMax(0, 59, "minute")],
+                        validators=[
+                            ValidMinMax(
+                                Constants.MINUTE_MIN, Constants.MINUTE_MAX, "minute"
+                            )
+                        ],
                         validate_on=["changed"],
                     )
                     yield Label(id="slot_summary")
