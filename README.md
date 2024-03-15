@@ -5,5 +5,5 @@
 The data is stored locally in a SQLite3 database. The app is really hard to execute. You'll need to have Python installed and from a command prompt enter:
 
 ```
-python .\tajm.py
+python .\tajm2.py
 ```

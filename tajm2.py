@@ -39,7 +39,7 @@ class TagSuggester(Suggester):
         return None
 
 
-class Tajm(App):
+class Tajm2(App):
     """A Textual app to manage time slots"""
 
     BINDINGS = [("q", "quit", "Quit"), ("d", "toggle_dark", "Toggle dark mode")]
@@ -562,6 +562,6 @@ if __name__ == "__main__":
     logging.basicConfig(filename="tajm.log", encoding="utf-8", level=logging.DEBUG)
     logging.debug("Spinning up")
     init_db()
-    app = Tajm()
+    app = Tajm2()
     app.run()
     close_db()
