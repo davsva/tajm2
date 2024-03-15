@@ -1,11 +1,11 @@
 """ entry point from pip """
 
-from tajm2 import tajm2
+from tajm2 import run_app
 
 
 def kick_start():
     """kick start the app"""
-    tajm2.run_app()
+    run_app()
 
 
 if __name__ == "__main__":
